@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Server.Name}} - GoDB Admin</title>
+    {{template "styles" .}}
+</head>
+<body>
+    {{template "header" .}}
+    <div class="main-container">
+        <div class="sidebar" id="sidebar">
+            <ul class="tree">
+                <li class="server-item">
+                    <div style="flex: 1;">
+                        {{.Server.Name}}
+                    </div>
+                    <span class="toggle-icon" onclick="toggleServer(event)">▼</span>
+                </li>
+                <ul class="database-list expanded" id="server-databases">
+                    {{range $index, $dbWithTables := .DatabasesWithTables}}
+                    <li class="tree-item database-item {{if eq $.CurrentDatabase .DatabaseName}}active{{end}}">
+                        <a href="/servers/{{$.Server.ID}}/database?db={{.DatabaseName}}" style="text-decoration: none; color: inherit; flex: 1;">
+                            {{.DatabaseName}}
+                        </a>
+                        {{if .Tables}}
+                        <span class="toggle-icon" onclick="toggleDatabase(event, {{$index}})">{{if eq $.CurrentDatabase .DatabaseName}}▼{{else}}▶{{end}}</span>
+                        {{end}}
+                    </li>
+                    {{if .Tables}}
+                    <ul class="table-list {{if eq $.CurrentDatabase .DatabaseName}}expanded{{end}}" id="db-{{$index}}">
+                        {{$dbName := .DatabaseName}}
+                        {{range $table := .Tables}}
+                        <li class="tree-item table-item">
+                            <a href="/servers/{{$.Server.ID}}/db/{{$dbName}}/table/{{$table.TableName}}" style="text-decoration: none; color: inherit; display: block;">
+                                {{$table.TableName}}
+                            </a>
+                        </li>
+                        {{end}}
+                    </ul>
+                    {{end}}
+                    {{end}}
+                </ul>
+            </ul>
+        </div>
+        <div class="resizer" id="resizer"></div>
+        <div class="content">
+            <div class="breadcrumb" style="margin-bottom: 1rem;">
+                <a href="/servers?selected={{.Server.ID}}">{{.Server.Name}}</a> &gt;
+                {{.CurrentDatabase}}
+            </div>
+
+            {{if .Error}}
+            <div class="card" style="background: #fee; border-left: 4px solid #e74c3c;">
+                <strong>{{T .Context "error"}}:</strong> {{.Error}}
+            </div>
+            {{end}}
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div>
+                        <h2>{{.CurrentDatabase}}</h2>
+                        <p style="margin: 1rem 0;">
+                            <strong>{{T .Context "table_count"}}:</strong> {{len .Tables}}
+                        </p>
+                    </div>
+                    <a href="/servers/{{.Server.ID}}/db/{{.CurrentDatabase}}/export" class="btn" style="background: #27ae60;">📥 {{T .Context "export"}}</a>
+                </div>
+
+                {{if .Tables}}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{{T .Context "table_name"}}</th>
+                            <th>{{T .Context "operations"}}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .Tables}}
+                        <tr>
+                            <td>
+                                <a href="/servers/{{$.Server.ID}}/db/{{$.CurrentDatabase}}/table/{{.TableName}}" style="color: #3498db; text-decoration: none;">
+                                    📊 {{.TableName}}
+                                </a>
+                            </td>
+                            <td>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <a href="/servers/{{$.Server.ID}}/db/{{$.CurrentDatabase}}/table/{{.TableName}}" class="btn" style="padding: 0.25rem 0.75rem; font-size: 0.85rem;">{{T $.Context "display"}}</a>
+                                    <a href="/servers/{{$.Server.ID}}/db/{{$.CurrentDatabase}}/table/{{.TableName}}/edit" class="btn" style="padding: 0.25rem 0.75rem; font-size: 0.85rem; background: #f39c12;">{{T $.Context "edit"}}</a>
+                                    <a href="/servers/{{$.Server.ID}}/db/{{$.CurrentDatabase}}/table/{{.TableName}}/delete" class="btn" style="padding: 0.25rem 0.75rem; font-size: 0.85rem; background: #e74c3c;" onclick="return confirm('{{T $.Context "confirm_delete_table"}}')">{{T $.Context "delete"}}</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+                {{else}}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <p>{{T .Context "no_tables"}}</p>
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Database Modal -->
+    <div id="createDatabaseModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">データベース作成</div>
+            <div class="modal-body">
+                <form id="createDatabaseForm">
+                    <div class="form-group">
+                        <label for="dbName">データベース名</label>
+                        <input type="text" id="dbName" name="dbName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="charset">文字セット (オプション)</label>
+                        <input type="text" id="charset" name="charset" placeholder="utf8mb4" value="utf8mb4">
+                    </div>
+                    <div class="form-group">
+                        <label for="collation">照合順序 (オプション)</label>
+                        <input type="text" id="collation" name="collation" placeholder="utf8mb4_unicode_ci" value="utf8mb4_unicode_ci">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="hideCreateDatabaseModal()">キャンセル</button>
+                <button type="button" class="btn btn-success" onclick="createDatabase()">作成</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showCreateDatabaseModal() {
+            document.getElementById('createDatabaseModal').classList.add('show');
+        }
+
+        function hideCreateDatabaseModal() {
+            document.getElementById('createDatabaseModal').classList.remove('show');
+            document.getElementById('createDatabaseForm').reset();
+        }
+
+        async function createDatabase() {
+            const dbName = document.getElementById('dbName').value;
+            const charset = document.getElementById('charset').value;
+            const collation = document.getElementById('collation').value;
+
+            if (!dbName) {
+                alert('データベース名を入力してください');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/database/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        server_id: '{{.Server.ID}}',
+                        db_name: dbName,
+                        charset: charset,
+                        collation: collation
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('データベースを作成しました');
+                    hideCreateDatabaseModal();
+                    location.reload();
+                } else {
+                    alert('エラー: ' + data.error);
+                }
+            } catch (error) {
+                alert('データベース作成に失敗しました: ' + error);
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('createDatabaseModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideCreateDatabaseModal();
+            }
+        });
+
+        // Toggle server tree
+        function toggleServer(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const databaseList = document.getElementById('server-databases');
+            const toggleIcon = event.target;
+
+            if (databaseList.classList.contains('expanded')) {
+                databaseList.classList.remove('expanded');
+                toggleIcon.textContent = '▶';
+            } else {
+                databaseList.classList.add('expanded');
+                toggleIcon.textContent = '▼';
+            }
+        }
+
+        // Toggle database tree
+        function toggleDatabase(event, index) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const tableList = document.getElementById('db-' + index);
+            const toggleIcon = event.target;
+
+            if (tableList.classList.contains('expanded')) {
+                tableList.classList.remove('expanded');
+                toggleIcon.textContent = '▶';
+            } else {
+                tableList.classList.add('expanded');
+                toggleIcon.textContent = '▼';
+            }
+        }
+
+        // Resizer functionality
+        const resizer = document.getElementById('resizer');
+        const sidebar = document.getElementById('sidebar');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', function(e) {
+            isResizing = true;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isResizing) return;
+
+            const newWidth = e.clientX;
+            if (newWidth >= 150 && newWidth <= 600) {
+                sidebar.style.width = newWidth + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', function(e) {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+    </script>
+</body>
+</html>

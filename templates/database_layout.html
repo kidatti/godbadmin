@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="{{if eq .Lang "ja"}}ja{{else}}en{{end}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Server.Name}} - {{T .Context "app_name"}}</title>
+    {{template "styles" .}}
+</head>
+<body>
+    {{template "header" .}}
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-header">データベース・テーブル</div>
+            <ul class="tree">
+                <li class="tree-item database-item {{if not .CurrentTable}}active{{end}}">
+                    <a href="/servers/{{.Server.ID}}/database" style="text-decoration: none; color: inherit; display: block;">
+                        {{.Server.Database}}
+                    </a>
+                </li>
+                {{range .Tables}}
+                <li class="tree-item table-item {{if eq $.CurrentTable .TableName}}active{{end}}">
+                    <a href="/servers/{{$.Server.ID}}/table/{{.TableName}}" style="text-decoration: none; color: inherit; display: block;">
+                        {{.TableName}}
+                    </a>
+                </li>
+                {{end}}
+            </ul>
+        </div>
+        <div class="content">
+            {{if .Error}}
+            <div class="card" style="background: #fee; border-left: 4px solid #e74c3c;">
+                <strong>エラー:</strong> {{.Error}}
+            </div>
+            {{end}}
+
+            {{template "main_content" .}}
+        </div>
+    </div>
+</body>
+</html>

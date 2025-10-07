@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="{{if eq .Lang "ja"}}ja{{else}}en{{end}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - {{T .Context "app_name"}}</title>
+    {{template "styles" .}}
+    <style>
+        .server-list { list-style: none; }
+        .server-item { padding: 1rem; border-bottom: 1px solid #f5f5f5; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .server-item:hover { background: #f8f9fa; }
+        .server-item.active { background: #3498db; color: white; }
+        .server-name { font-weight: 600; flex: 1; }
+        .server-info { font-size: 0.85rem; color: #7f8c8d; margin-top: 0.25rem; }
+        .server-item.active .server-info { color: #ecf0f1; }
+    </style>
+</head>
+<body>
+    {{template "header" .}}
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>{{T .Context "servers"}}</span>
+                <a href="/servers/new" class="btn btn-success btn-small">+ {{T .Context "add"}}</a>
+            </div>
+            <ul class="server-list">
+                {{range .Servers}}
+                <li class="server-item {{if and $.Server (eq $.Server.ID .ID)}}active{{end}}" onclick="window.location.href='/servers/{{.ID}}/edit'">
+                    <div style="flex: 1;">
+                        <div class="server-name">{{.Name}}</div>
+                        <div class="server-info">{{.DBType}} - {{.Host}}:{{.Port}}</div>
+                    </div>
+                </li>
+                {{end}}
+            </ul>
+            {{if not .Servers}}
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <p>{{T .Context "no_servers"}}</p>
+            </div>
+            {{end}}
+        </div>
+        <div class="content">
+            <div class="card">
+                <h2>{{.Title}}</h2>
+                <form method="POST" action="{{.Action}}">
+                <div class="form-group">
+                    <label for="name">{{T .Context "server_name"}}</label>
+                    <input type="text" id="name" name="name" value="{{if .Server}}{{.Server.Name}}{{end}}" required>
+                </div>
+                <div class="form-group">
+                    <label for="db_type">{{T .Context "database_type"}}</label>
+                    <select id="db_type" name="db_type" required>
+                        <option value="">{{T .Context "select_database_type"}}</option>
+                        <option value="mysql" {{if .Server}}{{if eq .Server.DBType "mysql"}}selected{{end}}{{end}}>MySQL</option>
+                        <option value="postgresql" {{if .Server}}{{if eq .Server.DBType "postgresql"}}selected{{end}}{{end}}>PostgreSQL</option>
+                        <option value="mariadb" {{if .Server}}{{if eq .Server.DBType "mariadb"}}selected{{end}}{{end}}>MariaDB</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="host">{{T .Context "host"}}</label>
+                    <input type="text" id="host" name="host" value="{{if .Server}}{{.Server.Host}}{{else}}localhost{{end}}" required>
+                </div>
+                <div class="form-group">
+                    <label for="port">{{T .Context "port"}}</label>
+                    <input type="number" id="port" name="port" value="{{if .Server}}{{.Server.Port}}{{else}}3306{{end}}" required>
+                </div>
+                <div class="form-group">
+                    <label for="user">{{T .Context "user"}}</label>
+                    <input type="text" id="user" name="user" value="{{if .Server}}{{.Server.User}}{{end}}" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">{{T .Context "password"}}</label>
+                    <input type="password" id="password" name="password" value="{{if .Server}}{{.Server.Password}}{{end}}">
+                </div>
+                <div class="form-group">
+                    <button type="button" id="test-connection" class="btn" style="background: #9b59b6;">🔌 {{T .Context "test_connection"}}</button>
+                    <span id="connection-result" style="margin-left: 1rem; font-weight: 600;"></span>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn btn-success">{{T .Context "save"}}</button>
+                    <a href="/servers" class="btn">{{T .Context "cancel"}}</a>
+                </div>
+            </form>
+
+            <script>
+                const dbTypeSelect = document.getElementById('db_type');
+                const portInput = document.getElementById('port');
+
+                // Default ports for each database type
+                const defaultPorts = {
+                    'mysql': 3306,
+                    'postgresql': 5432,
+                    'mariadb': 3306
+                };
+
+                // Auto-fill port when database type changes
+                dbTypeSelect.addEventListener('change', function() {
+                    const dbType = this.value;
+                    if (dbType && defaultPorts[dbType]) {
+                        portInput.value = defaultPorts[dbType];
+                    }
+                });
+
+                // Test connection button
+                document.getElementById('test-connection').addEventListener('click', async function() {
+                    const host = document.getElementById('host').value;
+                    const port = document.getElementById('port').value;
+                    const user = document.getElementById('user').value;
+                    const password = document.getElementById('password').value;
+                    const dbType = document.getElementById('db_type').value;
+
+                    if (!host || !user || !dbType) {
+                        alert('{{T .Context "alert_connection_fields"}}');
+                        return;
+                    }
+
+                    const btn = document.getElementById('test-connection');
+                    const result = document.getElementById('connection-result');
+
+                    btn.disabled = true;
+                    btn.textContent = '{{T .Context "connecting"}}';
+                    result.textContent = '';
+                    result.style.color = '';
+
+                    try {
+                        const response = await fetch('/api/test-connection', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                host: host,
+                                port: parseInt(port),
+                                user: user,
+                                password: password,
+                                db_type: dbType
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            result.textContent = '{{T .Context "connection_success"}}';
+                            result.style.color = '#27ae60';
+                        } else {
+                            result.textContent = '{{T .Context "connection_failed"}}: ' + data.error;
+                            result.style.color = '#e74c3c';
+                        }
+                    } catch (error) {
+                        result.textContent = '{{T .Context "error"}}: ' + error.message;
+                        result.style.color = '#e74c3c';
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = '🔌 {{T .Context "test_connection"}}';
+                    }
+                });
+            </script>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

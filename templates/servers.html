@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="{{if eq .Lang "ja"}}ja{{else}}en{{end}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{T .Context "menu_servers"}} - {{T .Context "app_name"}}</title>
+    {{template "styles" .}}
+    <style>
+        .server-list { list-style: none; }
+        .server-item { padding: 1rem; border-bottom: 1px solid #f5f5f5; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .server-item:hover { background: #f8f9fa; }
+        .server-item.active { background: #3498db; color: white; }
+        .server-name { font-weight: 600; flex: 1; }
+        .server-info { font-size: 0.85rem; color: #7f8c8d; margin-top: 0.25rem; }
+        .server-item.active .server-info { color: #ecf0f1; }
+    </style>
+</head>
+<body>
+    {{template "header" .}}
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>{{T .Context "servers"}}</span>
+                <a href="/servers/new" class="btn btn-success btn-small">+ {{T .Context "add"}}</a>
+            </div>
+            <ul class="server-list">
+                {{range .Servers}}
+                <li class="server-item {{if and $.SelectedServer (eq $.SelectedServer.ID .ID)}}active{{end}}" onclick="window.location.href='/servers?selected={{.ID}}'">
+                    <div style="flex: 1;">
+                        <div class="server-name">{{.Name}}</div>
+                        <div class="server-info">{{.DBType}} - {{.Host}}:{{.Port}}</div>
+                    </div>
+                </li>
+                {{end}}
+            </ul>
+            {{if not .Servers}}
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <p>{{T .Context "no_servers"}}</p>
+                <p style="margin-top: 1rem;">
+                    <a href="/servers/new" class="btn btn-success">+ {{T .Context "add_server"}}</a>
+                </p>
+            </div>
+            {{end}}
+        </div>
+        <div class="content">
+            {{if .SelectedServer}}
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>{{.SelectedServer.Name}}</h2>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="/servers/{{.SelectedServer.ID}}/info" class="btn">ℹ️ {{T .Context "server_info"}}</a>
+                        <a href="/servers/{{.SelectedServer.ID}}/privileges" class="btn">👥 {{T .Context "user_privileges"}}</a>
+                        <a href="/servers/{{.SelectedServer.ID}}/edit" class="btn">✏️ {{T .Context "edit"}}</a>
+                    </div>
+                </div>
+
+                {{if .Error}}
+                <div style="background: #fee; border-left: 4px solid #e74c3c; padding: 1rem; margin-bottom: 1rem;">
+                    <strong>{{T .Context "error"}}:</strong> {{.Error}}
+                </div>
+                {{end}}
+
+                <table style="margin-bottom: 1.5rem;">
+                    <tr>
+                        <th style="width: 200px;">{{T .Context "database_type"}}</th>
+                        <td>{{.SelectedServer.DBType}}</td>
+                    </tr>
+                    <tr>
+                        <th>{{T .Context "host"}}</th>
+                        <td>{{.SelectedServer.Host}}</td>
+                    </tr>
+                    <tr>
+                        <th>{{T .Context "port"}}</th>
+                        <td>{{.SelectedServer.Port}}</td>
+                    </tr>
+                    <tr>
+                        <th>{{T .Context "user"}}</th>
+                        <td>{{.SelectedServer.User}}</td>
+                    </tr>
+                </table>
+
+                <h3 style="margin-bottom: 0.5rem;">{{T .Context "database_list"}}</h3>
+                {{if .Databases}}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{{T .Context "database_name"}}</th>
+                            <th>{{T .Context "operations"}}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .Databases}}
+                        <tr>
+                            <td>
+                                <a href="/servers/{{$.SelectedServer.ID}}/database?db={{.DatabaseName}}" style="color: #3498db; text-decoration: none;">
+                                    🗄️ {{.DatabaseName}}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="/servers/{{$.SelectedServer.ID}}/database?db={{.DatabaseName}}" class="btn btn-small">{{T $.Context "display"}}</a>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+                {{else}}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <p>{{T .Context "no_databases"}}</p>
+                </div>
+                {{end}}
+            </div>
+            {{else}}
+            <div class="card">
+                <h2>{{T .Context "server_management"}}</h2>
+                <p style="color: #7f8c8d; margin-top: 1rem;">
+                    {{T .Context "server_management_description"}}
+                </p>
+            </div>
+            {{end}}
+        </div>
+    </div>
+</body>
+</html>

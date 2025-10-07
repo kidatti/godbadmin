@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ユーザー権限 - {{.Server.Name}} - GoDB Admin</title>
+    {{template "styles" .}}
+    <style>
+        body { background: #f5f5f5; }
+        .content { flex: 1; overflow-y: auto; padding: 2rem; max-width: 1400px; margin: 0 auto; width: 100%; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 1.5rem; margin-bottom: 1rem; }
+        .btn-small { padding: 0.25rem 0.75rem; font-size: 0.85rem; }
+        table { table-layout: fixed; }
+        th, td { word-wrap: break-word; }
+        .user-detail { background: #f8f9fa; }
+        .user-detail td { padding: 1rem; word-wrap: break-word; overflow-wrap: break-word; }
+        .grant-list { list-style: none; margin: 0; padding: 0; }
+        .grant-item { padding: 0.5rem; margin: 0.25rem 0; background: white; border-left: 3px solid #3498db; font-family: 'Courier New', monospace; font-size: 0.9rem; word-wrap: break-word; white-space: pre-wrap; overflow-wrap: break-word; }
+    </style>
+</head>
+<body>
+    {{template "header" .}}
+    <div class="content">
+        {{if .Error}}
+        <div class="card" style="background: #fee; border-left: 4px solid #e74c3c;">
+            <strong>エラー:</strong> {{.Error}}
+        </div>
+        {{end}}
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2>👥 ユーザー権限</h2>
+                <a href="/servers?selected={{.Server.ID}}" class="btn">← サーバ一覧へ戻る</a>
+            </div>
+
+            {{if .UserPrivileges}}
+            <p style="margin-bottom: 1rem; color: #7f8c8d;">
+                <strong>ユーザー数:</strong> {{len .UserPrivileges}}
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ユーザー</th>
+                        <th>ホスト</th>
+                        <th>権限数</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range $idx, $user := .UserPrivileges}}
+                    <tr>
+                        <td><strong>{{$user.User}}</strong></td>
+                        <td>{{$user.Host}}</td>
+                        <td>{{$user.Privileges}}</td>
+                        <td>
+                            <a href="#" class="btn btn-small" onclick="toggleGrants(event, {{$idx}})">📋 権限を表示</a>
+                        </td>
+                    </tr>
+                    <tr id="grants-{{$idx}}" class="user-detail" style="display: none;">
+                        <td colspan="4">
+                            <div id="grants-content-{{$idx}}" style="color: #7f8c8d;">読み込み中...</div>
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+            {{else}}
+            <div class="empty-state">
+                <p>ユーザー情報がありません</p>
+            </div>
+            {{end}}
+        </div>
+    </div>
+
+    <script>
+        const grantsCache = {};
+
+        async function toggleGrants(event, idx) {
+            event.preventDefault();
+            const row = document.getElementById('grants-' + idx);
+
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+
+                // Load grants if not cached
+                if (!grantsCache[idx]) {
+                    const contentDiv = document.getElementById('grants-content-' + idx);
+                    const userCell = event.target.closest('tr').cells[0];
+                    const hostCell = event.target.closest('tr').cells[1];
+                    const user = userCell.textContent.trim();
+                    const host = hostCell.textContent.trim();
+
+                    try {
+                        const response = await fetch('/api/user-grants?server_id={{.Server.ID}}&user=' + encodeURIComponent(user) + '&host=' + encodeURIComponent(host));
+                        const data = await response.json();
+
+                        if (data.success && data.grants && data.grants.length > 0) {
+                            let html = '<ul class="grant-list">';
+                            data.grants.forEach(grant => {
+                                html += '<li class="grant-item">' + escapeHtml(grant) + '</li>';
+                            });
+                            html += '</ul>';
+                            contentDiv.innerHTML = html;
+                            grantsCache[idx] = html;
+                        } else {
+                            contentDiv.innerHTML = '<p style="color: #7f8c8d;">権限情報がありません</p>';
+                            grantsCache[idx] = contentDiv.innerHTML;
+                        }
+                    } catch (error) {
+                        contentDiv.innerHTML = '<p style="color: #e74c3c;">エラー: ' + escapeHtml(error.message) + '</p>';
+                    }
+                } else {
+                    document.getElementById('grants-content-' + idx).innerHTML = grantsCache[idx];
+                }
+            } else {
+                row.style.display = 'none';
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>

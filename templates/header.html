@@ -1,0 +1,43 @@
+{{define "header"}}
+<div class="header">
+    <a href="/servers" class="header-brand">{{T .Context "app_name"}}</a>
+    <div class="header-menu">
+        <a href="/servers" class="header-menu-item {{if eq .ActiveMenu "servers"}}active{{end}}">{{T .Context "menu_servers"}}</a>
+        {{if or .Server .SelectedServer}}
+        <div class="header-menu-item {{if eq .ActiveMenu "database"}}active{{end}}">
+            {{T .Context "menu_database"}}
+            {{if .ShowDatabaseDropdown}}
+            <div class="dropdown">
+                {{if .ShowCreateDatabase}}
+                <a href="#" class="dropdown-item" onclick="event.preventDefault(); showCreateDatabaseModal();">➕ {{T .Context "menu_create_database"}}</a>
+                {{end}}
+                {{if .CurrentDatabase}}
+                <a href="/servers/{{if .Server}}{{.Server.ID}}{{else}}{{.SelectedServer.ID}}{{end}}/db/{{.CurrentDatabase}}/export" class="dropdown-item">📥 {{T .Context "menu_export"}}</a>
+                <a href="/servers/{{if .Server}}{{.Server.ID}}{{else}}{{.SelectedServer.ID}}{{end}}/database?db={{.CurrentDatabase}}" class="dropdown-item">🔄 {{T .Context "menu_refresh"}}</a>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+        {{else}}
+        <span class="header-menu-item disabled">{{T .Context "menu_database"}}</span>
+        {{end}}
+    </div>
+    {{if .Server}}
+    <div class="header-info">
+        <strong>{{.Server.Name}}</strong> ({{.Server.DBType}}) - {{.Server.Host}}:{{.Server.Port}}
+    </div>
+    {{else if .SelectedServer}}
+    <div class="header-info">
+        <strong>{{.SelectedServer.Name}}</strong> ({{.SelectedServer.DBType}}) - {{.SelectedServer.Host}}:{{.SelectedServer.Port}}
+    </div>
+    {{else}}
+    <div style="flex: 1;"></div>
+    {{end}}
+    <div class="header-language">
+        <select onchange="window.location.href='/api/set-language?lang='+this.value" class="language-select">
+            <option value="ja" {{if eq .Lang "ja"}}selected{{end}}>日本語</option>
+            <option value="en" {{if eq .Lang "en"}}selected{{end}}>English</option>
+        </select>
+    </div>
+</div>
+{{end}}

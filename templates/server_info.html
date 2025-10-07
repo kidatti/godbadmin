@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="{{if eq .Lang "ja"}}ja{{else}}en{{end}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{T .Context "server_info"}} - {{.Server.Name}} - {{T .Context "app_name"}}</title>
+    {{template "styles" .}}
+    <style>
+        body { background: #f5f5f5; }
+        .content { flex: 1; overflow-y: auto; padding: 2rem; max-width: 1200px; margin: 0 auto; width: 100%; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 1.5rem; margin-bottom: 1rem; }
+        .info-row { display: flex; border-bottom: 1px solid #ecf0f1; padding: 0.75rem 0; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { width: 250px; font-weight: 600; color: #2c3e50; padding-right: 1rem; flex-shrink: 0; }
+        .info-value { flex: 1; color: #34495e; }
+        .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.75rem; font-weight: 600; margin-left: 0.5rem; }
+        .badge-success { background: #27ae60; color: white; }
+        .badge-warning { background: #f39c12; color: white; }
+    </style>
+</head>
+<body>
+    {{template "header" .}}
+    <div class="content">
+        {{if .Error}}
+        <div class="card" style="background: #fee; border-left: 4px solid #e74c3c;">
+            <strong>{{T .Context "error"}}:</strong> {{.Error}}
+        </div>
+        {{end}}
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2>{{T .Context "server_info"}}</h2>
+                <a href="/servers?selected={{.Server.ID}}" class="btn">← {{T .Context "back_to_server_list"}}</a>
+            </div>
+
+            {{if .ServerInfo}}
+            <div class="info-row">
+                <div class="info-label">{{T .Context "server"}}:</div>
+                <div class="info-value">{{.Server.Host}}:{{.Server.Port}} via TCP/IP</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">{{T .Context "server_type"}}:</div>
+                <div class="info-value">{{.Server.DBType}}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">{{T .Context "server_connection"}}:</div>
+                <div class="info-value">
+                    {{if .ServerInfo.SSLCipher}}
+                    {{T .Context "ssl_enabled"}} <span class="badge badge-success">{{T .Context "ssl"}}</span>
+                    {{else}}
+                    {{T .Context "ssl_disabled"}} <span class="badge badge-warning">{{T .Context "non_ssl"}}</span>
+                    {{end}}
+                </div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">{{T .Context "server_version"}}:</div>
+                <div class="info-value">{{.ServerInfo.Version}}{{if .ServerInfo.VersionComment}} - {{.ServerInfo.VersionComment}}{{end}}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">{{T .Context "protocol_version"}}:</div>
+                <div class="info-value">{{.ServerInfo.ProtocolVersion}}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">{{T .Context "user"}}:</div>
+                <div class="info-value">{{.ServerInfo.CurrentUser}}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">{{T .Context "server_charset"}}:</div>
+                <div class="info-value">{{.ServerInfo.CharacterSetServer}}{{if .ServerInfo.CollationServer}} ({{.ServerInfo.CollationServer}}){{end}}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">{{T .Context "server_connection_collation"}}:</div>
+                <div class="info-value">{{.ServerInfo.CollationConnection}}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">{{T .Context "server_connection_charset"}}:</div>
+                <div class="info-value">{{.ServerInfo.CharacterSetConnection}}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">{{T .Context "connection_id"}}:</div>
+                <div class="info-value">{{.ServerInfo.ConnectionID}}</div>
+            </div>
+            {{else}}
+            <p style="color: #7f8c8d;">{{T .Context "server_info_not_available"}}</p>
+            {{end}}
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="{{if eq .Lang "ja"}}ja{{else}}en{{end}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{T .Context "row_details"}} - {{.CurrentTable}} - {{.Server.Name}} - {{T .Context "app_name"}}</title>
+    {{template "styles" .}}
+    <style>
+        .field-row { display: flex; border-bottom: 1px solid #ecf0f1; padding: 0.75rem 0; }
+        .field-row:last-child { border-bottom: none; }
+        .field-label { width: 200px; font-weight: 600; color: #2c3e50; padding-right: 1rem; flex-shrink: 0; }
+        .field-value { flex: 1; color: #34495e; word-break: break-all; }
+        .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.75rem; font-weight: 600; background: #3498db; color: white; margin-left: 0.5rem; }
+    </style>
+</head>
+<body>
+    {{template "header" .}}
+    <div class="main-container">
+        <div class="sidebar" id="sidebar">
+            <ul class="tree">
+                <li class="server-item">
+                    <div style="flex: 1;">
+                        {{.Server.Name}}
+                    </div>
+                    <span class="toggle-icon" onclick="toggleServer(event)">▼</span>
+                </li>
+                <ul class="database-list expanded" id="server-databases">
+                    {{range $index, $dbWithTables := .DatabasesWithTables}}
+                    <li class="tree-item database-item {{if eq $.CurrentDatabase .DatabaseName}}active{{end}}">
+                        <a href="/servers/{{$.Server.ID}}/database?db={{.DatabaseName}}" style="text-decoration: none; color: inherit; flex: 1;">
+                            {{.DatabaseName}}
+                        </a>
+                        {{if .Tables}}
+                        <span class="toggle-icon" onclick="toggleDatabase(event, {{$index}})">{{if eq $.CurrentDatabase .DatabaseName}}▼{{else}}▶{{end}}</span>
+                        {{end}}
+                    </li>
+                    {{if .Tables}}
+                    <ul class="table-list {{if eq $.CurrentDatabase .DatabaseName}}expanded{{end}}" id="db-{{$index}}">
+                        {{$dbName := .DatabaseName}}
+                        {{range $table := .Tables}}
+                        <li class="tree-item table-item {{if and (eq $.CurrentDatabase $dbName) (eq $.CurrentTable $table.TableName)}}active{{end}}">
+                            <a href="/servers/{{$.Server.ID}}/db/{{$dbName}}/table/{{$table.TableName}}" style="text-decoration: none; color: inherit; display: block;">
+                                {{$table.TableName}}
+                            </a>
+                        </li>
+                        {{end}}
+                    </ul>
+                    {{end}}
+                    {{end}}
+                </ul>
+            </ul>
+        </div>
+        <div class="resizer" id="resizer"></div>
+        <div class="content">
+            <div class="breadcrumb" style="margin-bottom: 1rem;">
+                <a href="/servers?selected={{.Server.ID}}">{{.Server.Name}}</a> &gt;
+                <a href="/servers/{{.Server.ID}}/database?db={{.CurrentDatabase}}">{{.CurrentDatabase}}</a> &gt;
+                <a href="/servers/{{.Server.ID}}/db/{{.CurrentDatabase}}/table/{{.CurrentTable}}">{{.CurrentTable}}</a> &gt;
+                {{T .Context "row_details"}}
+            </div>
+
+            {{if .Error}}
+            <div class="card" style="background: #fee; border-left: 4px solid #e74c3c;">
+                <strong>{{T .Context "error"}}:</strong> {{.Error}}
+            </div>
+            {{end}}
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>{{T .Context "row_details"}}</h2>
+                    <a href="/servers/{{.Server.ID}}/db/{{.CurrentDatabase}}/table/{{.CurrentTable}}" class="btn">📊 {{T .Context "back_to_table"}}</a>
+                </div>
+
+                <h3 style="margin-bottom: 1rem;">{{T .Context "table"}}: {{.CurrentTable}}</h3>
+
+                {{if .RowData}}
+                {{range $col := $.Columns}}
+                <div class="field-row">
+                    <div class="field-label">
+                        {{$col.Field}}
+                        {{if eq $col.Key "PRI"}}<span class="badge">PK</span>{{end}}
+                    </div>
+                    <div class="field-value">
+                        {{$value := index $.RowData $col.Field}}
+                        {{if $value}}{{$value}}{{else}}<span style="color: #95a5a6;">NULL</span>{{end}}
+                    </div>
+                </div>
+                {{end}}
+                {{else}}
+                <p style="color: #7f8c8d;">{{T .Context "no_data"}}</p>
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle server tree
+        function toggleServer(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const databaseList = document.getElementById('server-databases');
+            const toggleIcon = event.target;
+
+            if (databaseList.classList.contains('expanded')) {
+                databaseList.classList.remove('expanded');
+                toggleIcon.textContent = '▶';
+            } else {
+                databaseList.classList.add('expanded');
+                toggleIcon.textContent = '▼';
+            }
+        }
+
+        // Toggle database tree
+        function toggleDatabase(event, index) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const tableList = document.getElementById('db-' + index);
+            const toggleIcon = event.target;
+
+            if (tableList.classList.contains('expanded')) {
+                tableList.classList.remove('expanded');
+                toggleIcon.textContent = '▶';
+            } else {
+                tableList.classList.add('expanded');
+                toggleIcon.textContent = '▼';
+            }
+        }
+
+        // Resizer functionality
+        const resizer = document.getElementById('resizer');
+        const sidebar = document.getElementById('sidebar');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', function(e) {
+            isResizing = true;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isResizing) return;
+
+            const newWidth = e.clientX;
+            if (newWidth >= 150 && newWidth <= 600) {
+                sidebar.style.width = newWidth + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', function(e) {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+    </script>
+</body>
+</html>
